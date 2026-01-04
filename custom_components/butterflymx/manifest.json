@@ -1,0 +1,12 @@
+{
+    "domain": "butterflymx",
+    "name": "ButterflyMX",
+    "codeowners": [],
+    "config_flow": true,
+    "documentation": "https://github.com/your-repo/butterflymx-client",
+    "iot_class": "cloud_polling",
+    "requirements": [
+        "git+https://github.com/your-username/butterflymx-client.git#egg=butterflymx-client"
+    ],
+    "version": "1.0.0"
+}
