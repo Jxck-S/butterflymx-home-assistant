@@ -8,7 +8,7 @@ from butterflymx import ButterflyMXClient
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["lock", "sensor"]
+PLATFORMS = ["lock", "sensor", "image"]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up ButterflyMX from a config entry."""
