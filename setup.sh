@@ -6,6 +6,16 @@ MANIFEST_PATH="custom_components/butterflymx/manifest.json"
 
 echo "ButterflyMX Integration Setup"
 echo "-----------------------------"
+echo "IMPORTANT: This script should be run from your Home Assistant 'config' folder."
+echo "Current directory: $(pwd)"
+echo ""
+
+# 0. Check/Create custom_components directory
+if [ ! -d "custom_components" ]; then
+    echo "Creating 'custom_components' directory..."
+    mkdir -p custom_components
+fi
+
 echo "This script will configure your private ButterflyMX integration."
 echo ""
 
