@@ -35,13 +35,19 @@ fi
 
 # 1. Handle Cloning (if not already in the repo)
 if [ ! -f "$MANIFEST_PATH" ]; then
-    echo "Integration not found locally. Cloning..."
-    git clone "https://$PAT@$REPO_URL" temp_repo
+    echo "Integration not found locally. Installing into 'custom_components'..."
+    git clone "https://$PAT@$REPO_URL" butterflymx_temp
     if [ $? -ne 0 ]; then
         echo "Error: Failed to clone integration repo."
         exit 1
     fi
-    cd temp_repo
+    
+    # Move the component to the correct place
+    cp -r butterflymx_temp/custom_components/butterflymx custom_components/
+    
+    # Clean up temp clone
+    rm -rf butterflymx_temp
+    echo "Integration files installed successfully."
 fi
 
 # 2. Update manifest.json with the PAT
