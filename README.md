@@ -1,4 +1,5 @@
 # ButterflyMX Home Assistant Integration
+<img src="assets/logo.png" width="300" />
 
 This integration allows you to control your ButterflyMX access points (doors) and view message/call history from Home Assistant.
 
