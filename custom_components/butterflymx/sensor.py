@@ -65,10 +65,13 @@ class LastCallSensor(SensorEntity):
         if calls:
              last_call = calls[0]
              self._attr_native_value = f"{last_call.device} - {last_call.status}"
+             self._attr_entity_picture = last_call.image_url
              self._attr_extra_state_attributes = {
+                 "call_id": last_call.id,
                  "status": last_call.status,
                  "device": last_call.device,
                  "type": last_call.type,
                  "timestamp": last_call.logged_at,
+                 "visitor_name": last_call.visitor_name,
                  "image_url": last_call.image_url
              }
