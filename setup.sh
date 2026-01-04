@@ -10,6 +10,11 @@ echo "This script will configure your private ButterflyMX integration."
 echo ""
 
 # Ask for PAT
+echo "To clone/update this private integration, you need a Personal Access Token (PAT)."
+echo "Recommendation: Use a 'Fine-grained' token with:"
+echo " 1. Access to: 'butterflymx-home-assistant' and 'butterflymx-client'"
+echo " 2. Permissions: 'Contents' set to 'Read-only'"
+echo ""
 read -sp "Enter your GitHub Personal Access Token: " PAT
 echo ""
 
