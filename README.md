@@ -20,6 +20,22 @@ Since the client library is a private repository, this integration requires a Gi
    ```
 3. Enter your GitHub Personal Access Token when prompted. The script will update `manifest.json` with your token so Home Assistant can automatically install the required client library.
 
+## GitHub Personal Access Token (PAT)
+
+Since both the integration and the client library are private, you need a GitHub PAT to allow Home Assistant to download the dependency. We recommend using a **Fine-grained Personal Access Token** for better security.
+
+### How to Create a Fine-grained PAT
+1. Go to [GitHub Settings > Developer Settings > Personal access tokens > Fine-grained tokens](https://github.com/settings/tokens?type=beta).
+2. Click **Generate new token**.
+3. **Name**: Give it a name (e.g., "Home Assistant ButterflyMX").
+4. **Repository access**: Select **Only select repositories**.
+5. **Select repositories**: Choose both:
+   - `butterflymx-home-assistant`
+   - `butterflymx-client`
+6. **Permissions**: Under **Repository permissions**:
+   - Find **Contents** and set it to **Read-only**.
+7. Click **Generate token** and copy it immediately.
+
 ### 2. Manual Configuration (Optional)
 Alternatively, you can manually replace `YOUR_GITHUB_TOKEN` in `custom_components/butterflymx/manifest.json` with your actual PAT.
 
