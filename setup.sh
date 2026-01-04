@@ -32,14 +32,9 @@ fi
 # 2. Update manifest.json with the PAT
 echo "Updating manifest.json with your PAT..."
 
-# Use python for portable string replacement
-python3 -c "
-import sys
-content = open('$MANIFEST_PATH').read()
-new_content = content.replace('YOUR_GITHUB_TOKEN', '$PAT')
-with open('$MANIFEST_PATH', 'w') as f:
-    f.write(new_content)
-"
+# Use sed for replacement (more likely to be available than python3)
+# Note: Using | as delimiter to avoid issues with / in PAT or URL
+sed -i "s|YOUR_GITHUB_TOKEN|$PAT|g" "$MANIFEST_PATH"
 
 if [ $? -eq 0 ]; then
     echo "Success! manifest.json has been updated."
