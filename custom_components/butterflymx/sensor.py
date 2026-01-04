@@ -72,6 +72,5 @@ class LastCallSensor(SensorEntity):
                  "device": last_call.device,
                  "type": last_call.type,
                  "timestamp": last_call.logged_at,
-                 "visitor_name": last_call.visitor_name,
                  "image_url": last_call.image_url
              }
