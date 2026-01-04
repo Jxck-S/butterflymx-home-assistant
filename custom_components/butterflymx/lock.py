@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import time
 from homeassistant.components.lock import LockEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -48,7 +50,6 @@ class ButterflyMXDoor(LockEntity):
 
     async def async_unlock(self, **kwargs):
         """Unlock the door."""
-        import time
         now = time.time()
         if now - self._last_unlock_time < 20:
             _LOGGER.warning(f"Unlock requested for {self.name} but cooldown is active ({int(20 - (now - self._last_unlock_time))}s remaining)")
@@ -64,9 +65,8 @@ class ButterflyMXDoor(LockEntity):
              self._attr_is_locked = False
              self.async_write_ha_state()
              
-             # Re-lock after 'openDuration' (simulated) or just immediately since we can't really track it
-             # For now, we rely on the next update or just keep it unlocked for a moment visually?
-             # Better: just set it back to locked after a delay, but let's leave it simple.
+             # Re-lock after 10 seconds visually in HA
+             await asyncio.sleep(10)
              self._attr_is_locked = True
              self.async_write_ha_state()
 
