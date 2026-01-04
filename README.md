@@ -5,45 +5,26 @@ This integration allows you to control your ButterflyMX access points (doors) an
 
 ## Installation
 
-### 1. Bundle the Client Library
-Since the client library is a private repository, you must bundle it into the integration folder manually.
+### 1. Configure with Setup Script
+Since the client library is a private repository, this integration requires a GitHub Personal Access Token (PAT) for installation.
 
-1. Clone this repository into your `custom_components` folder.
-2. Run the bundling script:
+1. Clone this repository into your Home Assistant's `custom_components/` directory:
    ```bash
-   ./bundle_client.sh
+   cd config/custom_components
+   git clone https://github.com/Jxck-S/butterflymx-home-assistant.git
+   cd butterflymx-home-assistant
    ```
-3. Enter your GitHub Personal Access Token when prompted. The script will automatically clone the required library and place the files in the correct location.
+2. Run the setup script to configure your PAT:
+   ```bash
+   ./setup.sh
+   ```
+3. Enter your GitHub Personal Access Token when prompted. The script will update `manifest.json` with your token so Home Assistant can automatically install the required client library.
 
-### 2. Configuration
-After bundling the files, restart Home Assistant and add the ButterflyMX integration via the UI.
+### 2. Manual Configuration (Optional)
+Alternatively, you can manually replace `YOUR_GITHUB_TOKEN` in `custom_components/butterflymx/manifest.json` with your actual PAT.
 
-This directory contains a custom component for Home Assistant that uses the `butterflymx-client` library.
-
-## Installation
-
-1.  **Copy Folder**: Copy the `home_assistant_integration/custom_components/butterflymx` folder to your Home Assistant's `config/custom_components/` directory.
-
-2.  **Configure Requirement (Important)**:
-    Open `custom_components/butterflymx/manifest.json`. You must update the `requirements` section to point to your private GitHub repository where you have hosted the python library code.
-    
-    You will need a **GitHub Personal Access Token** (Classic) with `repo` scope.
-    
-    Format:
-    ```json
-    "requirements": [
-        "git+https://YOUR_GITHUB_TOKEN@github.com/YOUR_USERNAME/butterflymx-client.git#egg=butterflymx-client"
-    ]
-    ```
-
-    **Where does the token go?**
-    The token is inserted directly into the URL, after `https://` and before `@github.com`.
-    
-    *   **Result**: `git+https://ghp_MySecretToken123@github.com/myusername/butterflymx-client.git#egg=butterflymx-client`
-    
-    *Replace `YOUR_GITHUB_TOKEN` and `YOUR_USERNAME` with your actual details.*
-
-3.  **Restart Home Assistant**: Restart your instance to load the new component.
+### 3. Home Assistant Setup
+After configuration, restart Home Assistant and add the ButterflyMX integration via the UI.
 
 4.  **Add Integration**:
     *   Go to **Settings > Devices & Services**.
