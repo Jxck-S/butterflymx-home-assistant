@@ -1,5 +1,22 @@
 # ButterflyMX Home Assistant Integration
 
+This integration allows you to control your ButterflyMX access points (doors) and view message/call history from Home Assistant.
+
+## Installation
+
+### 1. Bundle the Client Library
+Since the client library is a private repository, you must bundle it into the integration folder manually.
+
+1. Clone this repository into your `custom_components` folder.
+2. Run the bundling script:
+   ```bash
+   ./bundle_client.sh
+   ```
+3. Enter your GitHub Personal Access Token when prompted. The script will automatically clone the required library and place the files in the correct location.
+
+### 2. Configuration
+After bundling the files, restart Home Assistant and add the ButterflyMX integration via the UI.
+
 This directory contains a custom component for Home Assistant that uses the `butterflymx-client` library.
 
 ## Installation

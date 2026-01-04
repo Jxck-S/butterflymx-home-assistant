@@ -5,8 +5,6 @@
     "config_flow": true,
     "documentation": "https://github.com/Jxck-S/butterflymx-home-assistant",
     "iot_class": "cloud_polling",
-    "requirements": [
-        "git+https://YOUR_GITHUB_TOKEN@github.com/Jxck-S/butterflymx-client.git#egg=butterflymx-client"
-    ],
+    "requirements": [],
     "version": "1.0.0"
 }
