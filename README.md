@@ -14,11 +14,13 @@ Since the client library is a private repository, this integration requires a Gi
    git clone https://github.com/Jxck-S/butterflymx-home-assistant.git
    cd butterflymx-home-assistant
    ```
-2. Run the setup script to configure your PAT:
+2. Run the setup script:
    ```bash
    ./setup.sh
    ```
-3. Enter your GitHub Personal Access Token when prompted. The script will update `manifest.json` with your token so Home Assistant can automatically install the required client library.
+   The script intelligently **caches your token** and **auto-detects** if it needs to perform a new installation or an update. After the first run, no further input is required.
+
+
 
 ## GitHub Personal Access Token (PAT)
 

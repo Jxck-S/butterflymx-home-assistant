@@ -2,13 +2,13 @@
 
 # Configuration
 REPO_URL="github.com/Jxck-S/butterflymx-home-assistant.git"
-MANIFEST_PATH="custom_components/butterflymx/manifest.json"
+DEST_DIR="custom_components/butterflymx"
+CACHE_FILE=".bmx_setup_cache"
 
-echo "ButterflyMX Integration Setup"
-echo "-----------------------------"
-echo "IMPORTANT: This script should be run from your Home Assistant 'config' folder."
+echo "======================================"
+echo "   ButterflyMX Integration Setup"
+echo "======================================"
 echo "Current directory: $(pwd)"
-echo ""
 
 # 0. Check/Create custom_components directory
 if [ ! -d "custom_components" ]; then
@@ -16,52 +16,80 @@ if [ ! -d "custom_components" ]; then
     mkdir -p custom_components
 fi
 
-echo "This script will configure your private ButterflyMX integration."
-echo ""
+# 1. Handle PAT (Auto-cache)
+PAT=""
+if [ -f "$CACHE_FILE" ]; then
+    PAT=$(cat "$CACHE_FILE")
+    echo "Using cached GitHub token..."
+else
+    echo "No cached token found."
+    read -sp "Enter your GitHub Personal Access Token: " PAT
+    echo ""
+    if [ -z "$PAT" ]; then
+        echo "Error: PAT cannot be empty."
+        exit 1
+    fi
+    echo "$PAT" > "$CACHE_FILE"
+    chmod 600 "$CACHE_FILE"
+fi
 
-# Ask for PAT
-echo "To clone/update this private integration, you need a Personal Access Token (PAT)."
-echo "Recommendation: Use a 'Fine-grained' token with:"
-echo " 1. Access to: 'butterflymx-home-assistant' and 'butterflymx-client'"
-echo " 2. Permissions: 'Contents' set to 'Read-only'"
-echo ""
-read -sp "Enter your GitHub Personal Access Token: " PAT
-echo ""
+# 2. Determine Mode (Auto-know)
+if [ -d "$DEST_DIR" ]; then
+    echo "Existing installation found. Performing automatic update..."
+    rm -rf "$DEST_DIR"
+else
+    echo "No existing installation found. Performing new install..."
+fi
 
-if [ -z "$PAT" ]; then
-    echo "Error: PAT cannot be empty."
+# 3. Execution
+echo "Fetching latest integration files..."
+rm -rf butterflymx_temp # Ensure clean start
+git clone --quiet "https://$PAT@$REPO_URL" butterflymx_temp
+
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to clone repository. Check your PAT or internet connection."
+    # If it failed, maybe the PAT in cache is old? Clear it to prompt next time.
+    rm -f "$CACHE_FILE"
     exit 1
 fi
 
-# 1. Handle Cloning (if not already in the repo)
-if [ ! -f "$MANIFEST_PATH" ]; then
-    echo "Integration not found locally. Installing into 'custom_components'..."
-    git clone "https://$PAT@$REPO_URL" butterflymx_temp
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to clone integration repo."
-        exit 1
-    fi
+echo "Installing integration..."
+cp -r butterflymx_temp/custom_components/butterflymx custom_components/
+rm -rf butterflymx_temp
+
+# 4. Manifest Update (Always update to ensure latest requirements)
+if [ -f "$DEST_DIR/manifest.json" ]; then
+    echo "Updating manifest.json requirements..."
     
-    # Move the component to the correct place
-    cp -r butterflymx_temp/custom_components/butterflymx custom_components/
-    
-    # Clean up temp clone
-    rm -rf butterflymx_temp
-    echo "Integration files installed successfully."
-fi
+    python3 -c "
+import json
+import os
 
-# 2. Update manifest.json with the PAT
-echo "Updating manifest.json with your PAT..."
+path = '$DEST_DIR/manifest.json'
+pat = '$PAT'
 
-# Use sed for replacement (more likely to be available than python3)
-# Note: Using | as delimiter to avoid issues with / in PAT or URL
-sed -i "s|YOUR_GITHUB_TOKEN|$PAT|g" "$MANIFEST_PATH"
+if not os.path.exists(path):
+    print(f'Error: {path} not found')
+    exit(1)
 
-if [ $? -eq 0 ]; then
-    echo "Success! manifest.json has been updated."
-    echo ""
-    echo "If you are using HACS, you can now add this folder/repo to your installation."
+with open(path, 'r') as f:
+    data = json.load(f)
+
+new_reqs = []
+for req in data.get('requirements', []):
+    if 'butterflymx-client.git' in req:
+        new_reqs.append(f'git+https://{pat}@github.com/Jxck-S/butterflymx-client.git#egg=butterflymx-client')
+    else:
+        new_reqs.append(req.replace('YOUR_GITHUB_TOKEN', pat))
+
+data['requirements'] = new_reqs
+
+with open(path, 'w') as f:
+    json.dump(data, f, indent=4)
+"
+    echo "Success! Setup complete."
+    echo "Please restart Home Assistant to apply changes."
 else
-    echo "Error: Failed to update manifest.json."
+    echo "Error: manifest.json not found in $DEST_DIR"
     exit 1
 fi
