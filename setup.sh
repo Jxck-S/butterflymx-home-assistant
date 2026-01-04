@@ -61,35 +61,23 @@ rm -rf butterflymx_temp
 if [ -f "$DEST_DIR/manifest.json" ]; then
     echo "Updating manifest.json requirements..."
     
-    python3 -c "
-import json
-import os
-
-path = '$DEST_DIR/manifest.json'
-pat = '$PAT'
-
-if not os.path.exists(path):
-    print(f'Error: {path} not found')
-    exit(1)
-
-with open(path, 'r') as f:
-    data = json.load(f)
-
-new_reqs = []
-for req in data.get('requirements', []):
-    if 'butterflymx-client.git' in req:
-        new_reqs.append(f'git+https://{pat}@github.com/Jxck-S/butterflymx-client.git#egg=butterflymx-client')
-    else:
-        new_reqs.append(req.replace('YOUR_GITHUB_TOKEN', pat))
-
-data['requirements'] = new_reqs
-
-with open(path, 'w') as f:
-    json.dump(data, f, indent=4)
-"
+    # Portable sed with backup file for macOS/Linux compatibility
+    REQ_URL="git+https://$PAT@github.com/Jxck-S/butterflymx-client.git#egg=butterflymx-client"
+    
+    # Replace the line containing butterflymx-client.git
+    sed -i.bak "s|.*butterflymx-client.git.*|\"        $REQ_URL\"|g" "$DEST_DIR/manifest.json"
+    
+    # Also replace any lingering placeholders
+    sed -i.bak "s|YOUR_GITHUB_TOKEN|$PAT|g" "$DEST_DIR/manifest.json"
+    
+    # Clean up backup
+    rm "$DEST_DIR/manifest.json.bak"
+    
     echo "Success! Setup complete."
     echo "Please restart Home Assistant to apply changes."
 else
     echo "Error: manifest.json not found in $DEST_DIR"
     exit 1
 fi
+
+
