@@ -4,7 +4,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from .const import DOMAIN, CONF_EMAIL, CONF_PASSWORD
 
-from .butterflymx import ButterflyMXClient
+from butterflymx import ButterflyMXClient
 
 _LOGGER = logging.getLogger(__name__)
 

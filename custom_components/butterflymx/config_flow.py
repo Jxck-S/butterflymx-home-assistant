@@ -6,7 +6,7 @@ from homeassistant.exceptions import HomeAssistantError
 from .const import DOMAIN, CONF_EMAIL, CONF_PASSWORD
 
 # Import the library (assuming it's installed via requirements)
-from .butterflymx import ButterflyMXClient
+from butterflymx import ButterflyMXClient
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for ButterflyMX."""
