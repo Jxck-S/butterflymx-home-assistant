@@ -112,3 +112,40 @@ async def test_image_is_cached_per_url(hass, aioclient_mock, setup_integration, 
     await client.get(url)
     await client.get(url)
     assert aioclient_mock.call_count == 1
+
+
+async def test_time_sensors_use_event_time(hass, setup_integration):
+    """Timestamp sensors report when the event happened, not when HA fetched it."""
+    expected = {
+        "sensor.unit_101_last_message_time": "2026-01-02T00:00:00+00:00",
+        "sensor.unit_101_last_call_time": "2026-01-03T00:00:00+00:00",
+        "sensor.unit_101_last_access_time": "2026-01-04T00:00:00+00:00",
+    }
+    for entity_id, ts in expected.items():
+        state = hass.states.get(entity_id)
+        assert state.state == ts, entity_id
+        assert state.attributes["device_class"] == "timestamp"
+
+
+async def test_images_use_event_time(hass, setup_integration):
+    """An image entity's state is its last-updated time; it should be the event's time."""
+    assert hass.states.get("image.unit_101_latest_call_image").state == "2026-01-03T00:00:00+00:00"
+    assert hass.states.get("image.unit_101_latest_message_image").state == "2026-01-02T00:00:00+00:00"
+    assert hass.states.get("image.unit_101_latest_access_image").state == "2026-01-04T00:00:00+00:00"
+
+
+async def test_new_event_updates_image_time(hass, setup_integration, mock_client):
+    original = mock_client.tenant.get_overview.side_effect
+
+    def newer():
+        overview = original()
+        overview.calls[0].image_url = "https://img.example/c2"
+        overview.calls[0].logged_at = "2026-01-05T12:30:00Z"
+        return overview
+
+    mock_client.tenant.get_overview.side_effect = newer
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=6))
+    await hass.async_block_till_done()
+
+    assert hass.states.get("image.unit_101_latest_call_image").state == "2026-01-05T12:30:00+00:00"
+    assert hass.states.get("sensor.unit_101_last_call_time").state == "2026-01-05T12:30:00+00:00"

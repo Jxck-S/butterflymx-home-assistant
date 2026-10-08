@@ -42,14 +42,19 @@ class ButterflyMXImageEntity(ButterflyMXEntity, ImageEntity):
         self._image: tuple[str, bytes] | None = None  # (url, bytes) cache
         self._update_url()
 
-    def _latest_url(self) -> str | None:
+    def _latest(self) -> tuple[str | None, str | None]:
+        """(snapshot URL, event time) of the latest event."""
         raise NotImplementedError
 
     def _update_url(self) -> None:
-        url = self._latest_url()
+        url, event_time = self._latest()
         if url != self._attr_image_url:
             self._attr_image_url = url
-            self._attr_image_last_updated = dt_util.utcnow()
+            # The entity's state is this time, so use when the event happened,
+            # not when Home Assistant first saw it
+            self._attr_image_last_updated = (dt_util.parse_datetime(event_time) if event_time else None) or (
+                dt_util.utcnow()
+            )
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -80,22 +85,22 @@ class ButterflyMXImageEntity(ButterflyMXEntity, ImageEntity):
 class LatestCallImage(ButterflyMXImageEntity):
     _kind = "call"
 
-    def _latest_url(self) -> str | None:
+    def _latest(self) -> tuple[str | None, str | None]:
         calls = self.overview.calls
-        return calls[0].image_url if calls else None
+        return (calls[0].image_url, calls[0].logged_at) if calls else (None, None)
 
 
 class LatestMessageImage(ButterflyMXImageEntity):
     _kind = "message"
 
-    def _latest_url(self) -> str | None:
+    def _latest(self) -> tuple[str | None, str | None]:
         msgs = self.overview.messages
-        return msgs[0].image_url if msgs else None
+        return (msgs[0].image_url, msgs[0].created_at) if msgs else (None, None)
 
 
 class LatestAccessImage(ButterflyMXImageEntity):
     _kind = "access"
 
-    def _latest_url(self) -> str | None:
+    def _latest(self) -> tuple[str | None, str | None]:
         logs = self.overview.access_logs
-        return logs[0].image_url if logs else None
+        return (logs[0].image_url, logs[0].logged_at) if logs else (None, None)

@@ -40,7 +40,8 @@ Each ButterflyMX unit (tenant) shows up as a device with these entities:
     *   **Last Message**: The most recent text message. Attributes include visitor, source, timestamp and image URL.
     *   **Last Call**: The device and status of the most recent intercom call. Attributes include type, timestamp and image URL.
     *   **Last Access**: The door and type of the most recent door release. Attributes include method, device and timestamp.
-*   **Images**: Snapshots from the latest call, message and door release.
+    *   **Last Message Time / Last Call Time / Last Access Time**: When the latest event actually happened, according to ButterflyMX. Shown as "5 minutes ago" and usable in automations.
+*   **Images**: Snapshots from the latest call, message and door release. Each image's time is when the event happened, not when Home Assistant fetched it.
 
 Data is refreshed every 5 minutes, with a single request per unit.
 
