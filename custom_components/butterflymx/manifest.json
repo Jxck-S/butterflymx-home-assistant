@@ -10,5 +10,5 @@
     "requirements": [
         "git+https://github.com/Jxck-S/butterflymx-client.git@29347f35e2ca73a94f18a574616bf613490f45d0#egg=butterflymx-client==2.0.0"
     ],
-    "version": "2.1.0"
+    "version": "2.2.0"
 }

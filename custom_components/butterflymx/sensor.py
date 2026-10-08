@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
@@ -26,6 +27,9 @@ async def async_setup_entry(
             LastMessageSensor(coordinator, tenant),
             LastCallSensor(coordinator, tenant),
             LastAccessSensor(coordinator, tenant),
+            LastMessageTimeSensor(coordinator, tenant),
+            LastCallTimeSensor(coordinator, tenant),
+            LastAccessTimeSensor(coordinator, tenant),
         ]
     async_add_entities(entities)
 
@@ -136,3 +140,51 @@ class LastAccessSensor(ButterflyMXEntity, SensorEntity):
             "image_url": a.image_url,
             "summary": f"{a.door_name} opened via {a.method} ({a.type})",
         }
+
+
+class EventTimeSensor(ButterflyMXEntity, SensorEntity):
+    """When the latest event of one kind actually happened (from ButterflyMX, not
+    when Home Assistant noticed it)."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _kind: str
+
+    def __init__(self, coordinator, tenant) -> None:
+        super().__init__(coordinator, tenant)
+        self._attr_name = f"Last {self._kind.title()} Time"
+        self._attr_unique_id = f"butterflymx_last_{self._kind}_time_{tenant.id}"
+
+    def _event_time(self) -> str | None:
+        raise NotImplementedError
+
+    @property
+    def native_value(self) -> datetime | None:
+        ts = self._event_time()
+        return dt_util.parse_datetime(ts) if ts else None
+
+
+class LastMessageTimeSensor(EventTimeSensor):
+    _kind = "message"
+    _attr_icon = "mdi:message-text-clock"
+
+    def _event_time(self) -> str | None:
+        msgs = self.overview.messages
+        return msgs[0].created_at if msgs else None
+
+
+class LastCallTimeSensor(EventTimeSensor):
+    _kind = "call"
+    _attr_icon = "mdi:phone-clock"
+
+    def _event_time(self) -> str | None:
+        calls = self.overview.calls
+        return calls[0].logged_at if calls else None
+
+
+class LastAccessTimeSensor(EventTimeSensor):
+    _kind = "access"
+    _attr_icon = "mdi:door-closed-lock"
+
+    def _event_time(self) -> str | None:
+        logs = self.overview.access_logs
+        return logs[0].logged_at if logs else None
