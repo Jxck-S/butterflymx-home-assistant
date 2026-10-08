@@ -12,6 +12,8 @@ This integration allows you to control your ButterflyMX access points (doors) an
 
 ## Installation
 
+Requires Home Assistant 2025.2 or newer.
+
 ### HACS (recommended)
 1. In HACS, open the menu (⋮) > **Custom repositories**.
 2. Add `https://github.com/Jxck-S/butterflymx-home-assistant` with category **Integration**.
@@ -31,13 +33,42 @@ Home Assistant installs the [butterflymx-client](https://github.com/Jxck-S/butte
 
 ## Entities
 
-*   **Locks**: Each accessible Door/Intercom will appear as a Lock entity.
-    *   **Unlock**: Pressing unlock will trigger the `open()` command.
+Each ButterflyMX unit (tenant) shows up as a device with these entities:
+
+*   **Locks**: One per door. **Unlock** opens the door. It shows as unlocked for 10 seconds, then locked again, because the doors re-lock themselves. Repeat unlocks within 20 seconds are ignored. A door that ButterflyMX reports as offline shows as unavailable.
 *   **Sensors**:
-    *   **Last Message**: Shows the body of the most recent message. Attributes include timestamp and source.
-    *   **Last Call**: Shows the device and status of the most recent call. Attributes include type and image URL.
-    *   **Last Access**: Shows the door and type of the most recent door release.
-*   **Images**: Latest call, message, and access snapshots.
+    *   **Last Message**: The most recent text message. Attributes include visitor, source, timestamp and image URL.
+    *   **Last Call**: The device and status of the most recent intercom call. Attributes include type, timestamp and image URL.
+    *   **Last Access**: The door and type of the most recent door release. Attributes include method, device and timestamp.
+*   **Images**: Snapshots from the latest call, message and door release.
+
+Data is refreshed every 5 minutes, with a single request per unit.
+
+## Troubleshooting
+
+*   **Changed your ButterflyMX password?** Home Assistant shows a repair to re-enter it under **Settings > Devices & Services**.
+*   **ButterflyMX unreachable?** Entities show as unavailable and Home Assistant keeps retrying.
+*   **Debug logs:** add this to `configuration.yaml`:
+    ```yaml
+    logger:
+      logs:
+        custom_components.butterflymx: debug
+        butterflymx: debug
+    ```
+
+## Upgrading from 1.x
+
+Version 2.0 stores login tokens in the integration's config entry instead of a separate file. The old `.storage/butterflymx_tokens_*.json` file is deleted automatically. After upgrading, the integration logs in once with your saved email and password. Entity IDs stay the same.
+
+## Development
+
+Tests run inside a real Home Assistant test instance with the ButterflyMX client mocked:
+
+```bash
+pip install -r requirements_test.txt
+ruff check .
+pytest
+```
 
 ## License
 

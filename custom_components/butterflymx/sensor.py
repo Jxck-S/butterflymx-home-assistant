@@ -1,125 +1,138 @@
-import logging
+"""Sensors for the latest ButterflyMX message, call and door release."""
+
+from __future__ import annotations
+
+from typing import Any
+
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from datetime import timedelta
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
+from .coordinator import ButterflyMXConfigEntry
+from .entity import ButterflyMXEntity
 
-from .const import DOMAIN
-
-_LOGGER = logging.getLogger(__name__)
-
-SCAN_INTERVAL = timedelta(minutes=5) # Poll every 5 mins
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    entry: ButterflyMXConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the ButterflyMX Sensor platform."""
-    client = hass.data[DOMAIN][entry.entry_id]
-    tenants = await client.get_tenants()
-    
-    entities = []
-    for tenant in tenants:
-        entities.append(LastMessageSensor(client, tenant))
-        entities.append(LastCallSensor(client, tenant))
-        entities.append(LastAccessSensor(client, tenant))
-            
-    async_add_entities(entities, update_before_add=True)
+    """Set up the ButterflyMX sensors."""
+    coordinator = entry.runtime_data
+    entities: list[SensorEntity] = []
+    for tenant in coordinator.tenants:
+        entities += [
+            LastMessageSensor(coordinator, tenant),
+            LastCallSensor(coordinator, tenant),
+            LastAccessSensor(coordinator, tenant),
+        ]
+    async_add_entities(entities)
 
-class LastMessageSensor(SensorEntity):
-    """Sensor for the latest message."""
 
-    def __init__(self, client, tenant):
-        self._client = client
-        self._tenant = tenant
+class LastMessageSensor(ButterflyMXEntity, SensorEntity):
+    """The latest text message."""
+
+    _attr_icon = "mdi:message-text"
+
+    def __init__(self, coordinator, tenant) -> None:
+        super().__init__(coordinator, tenant)
         self._attr_name = f"Last Message ({tenant.name})"
         self._attr_unique_id = f"butterflymx_last_message_{tenant.id}"
-        self._attr_icon = "mdi:message-text"
 
-    async def async_update(self):
-        """Fetch latest messages."""
-        msgs = await self._tenant.get_messages()
-        if msgs:
-            last_msg = msgs[0]
-            self._attr_native_value = last_msg.body[:255]
-            self._attr_entity_picture = last_msg.image_url
-            
-            ts = dt_util.parse_datetime(last_msg.created_at)
-            
-            self._attr_extra_state_attributes = {
-                "visitor_name": last_msg.visitor_name,
-                "source": last_msg.source,
-                "timestamp": ts,
-                "image_url": last_msg.image_url,
-                "full_body": last_msg.body,
-                "summary": f"{last_msg.visitor_name}: {last_msg.body}"
-            }
+    @property
+    def native_value(self) -> str | None:
+        msgs = self.overview.messages
+        return (msgs[0].body or "")[:255] if msgs else None
+
+    @property
+    def entity_picture(self) -> str | None:
+        msgs = self.overview.messages
+        return msgs[0].image_url if msgs else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        if not (msgs := self.overview.messages):
+            return None
+        m = msgs[0]
+        return {
+            "visitor_name": m.visitor_name,
+            "source": m.source,
+            "timestamp": dt_util.parse_datetime(m.created_at) if m.created_at else None,
+            "image_url": m.image_url,
+            "full_body": m.body,
+            "summary": f"{m.visitor_name}: {m.body}",
+        }
 
 
-class LastCallSensor(SensorEntity):
-    """Sensor for the latest call."""
+class LastCallSensor(ButterflyMXEntity, SensorEntity):
+    """The latest intercom call."""
 
-    def __init__(self, client, tenant):
-        self._client = client
-        self._tenant = tenant
+    _attr_icon = "mdi:phone"
+
+    def __init__(self, coordinator, tenant) -> None:
+        super().__init__(coordinator, tenant)
         self._attr_name = f"Last Call ({tenant.name})"
         self._attr_unique_id = f"butterflymx_last_call_{tenant.id}"
-        self._attr_icon = "mdi:phone"
 
-    async def async_update(self):
-        """Fetch latest calls."""
-        calls = await self._tenant.get_calls()
-        if calls:
-             last_call = calls[0]
-             self._attr_native_value = f"{last_call.device} - {last_call.status}"
-             self._attr_entity_picture = last_call.image_url
-             
-             ts = dt_util.parse_datetime(last_call.logged_at)
+    @property
+    def native_value(self) -> str | None:
+        calls = self.overview.calls
+        return f"{calls[0].device} - {calls[0].status}" if calls else None
 
-             self._attr_extra_state_attributes = {
-                 "call_id": last_call.id,
-                 "status": last_call.status,
-                 "device": last_call.device,
-                 "type": last_call.type,
-                 "timestamp": ts,
-                 "image_url": last_call.image_url,
-                 "summary": f"{last_call.device} ({last_call.type}): {last_call.status}"
-             }
+    @property
+    def entity_picture(self) -> str | None:
+        calls = self.overview.calls
+        return calls[0].image_url if calls else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        if not (calls := self.overview.calls):
+            return None
+        c = calls[0]
+        return {
+            "call_id": c.id,
+            "status": c.status,
+            "device": c.device,
+            "type": c.type,
+            "timestamp": dt_util.parse_datetime(c.logged_at) if c.logged_at else None,
+            "image_url": c.image_url,
+            "summary": f"{c.device} ({c.type}): {c.status}",
+        }
 
 
-class LastAccessSensor(SensorEntity):
-    """Sensor for the latest door release."""
+class LastAccessSensor(ButterflyMXEntity, SensorEntity):
+    """The latest door release."""
 
-    def __init__(self, client, tenant):
-        self._client = client
-        self._tenant = tenant
+    _attr_icon = "mdi:door-open"
+
+    def __init__(self, coordinator, tenant) -> None:
+        super().__init__(coordinator, tenant)
         self._attr_name = f"Last Access ({tenant.name})"
         self._attr_unique_id = f"butterflymx_last_access_{tenant.id}"
-        self._attr_icon = "mdi:door-open"
 
-    async def async_update(self):
-        """Fetch latest door releases."""
-        logs = await self._tenant.get_access_logs()
-        if logs:
-            last_log = logs[0]
-            self._attr_native_value = f"{last_log.door_name} - {last_log.type}"
-            self._attr_entity_picture = last_log.image_url
-            
-            ts = dt_util.parse_datetime(last_log.logged_at)
+    @property
+    def native_value(self) -> str | None:
+        logs = self.overview.access_logs
+        return f"{logs[0].door_name} - {logs[0].type}" if logs else None
 
-            self._attr_extra_state_attributes = {
-                "access_id": last_log.id,
-                "type": last_log.type,
-                "method": last_log.method,
-                "door": last_log.door_name,
-                "device": last_log.device_name,
-                "timestamp": ts,
-                "image_url": last_log.image_url,
-                "summary": f"{last_log.door_name} opened via {last_log.method} ({last_log.type})"
-            }
+    @property
+    def entity_picture(self) -> str | None:
+        logs = self.overview.access_logs
+        return logs[0].image_url if logs else None
 
-
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        if not (logs := self.overview.access_logs):
+            return None
+        a = logs[0]
+        return {
+            "access_id": a.id,
+            "type": a.type,
+            "method": a.method,
+            "door": a.door_name,
+            "device": a.device_name,
+            "timestamp": dt_util.parse_datetime(a.logged_at) if a.logged_at else None,
+            "image_url": a.image_url,
+            "summary": f"{a.door_name} opened via {a.method} ({a.type})",
+        }

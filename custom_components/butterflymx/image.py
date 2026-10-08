@@ -1,94 +1,101 @@
-import logging
+"""Image entities for the latest ButterflyMX call, message and door release snapshots."""
+
+from __future__ import annotations
+
 from homeassistant.components.image import ImageEntity
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
+from .coordinator import ButterflyMXConfigEntry, ButterflyMXCoordinator
+from .entity import ButterflyMXEntity
 
-_LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    entry: ButterflyMXConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the ButterflyMX Image platform."""
-    client = hass.data[DOMAIN][entry.entry_id]
-    tenants = await client.get_tenants()
-    
-    entities = []
-    for tenant in tenants:
-        entities.append(LatestCallImage(hass, tenant))
-        entities.append(LatestMessageImage(hass, tenant))
-        entities.append(LatestAccessImage(hass, tenant))
-            
-    async_add_entities(entities, update_before_add=True)
+    """Set up the ButterflyMX image entities."""
+    coordinator = entry.runtime_data
+    entities: list[ImageEntity] = []
+    for tenant in coordinator.tenants:
+        entities += [
+            LatestCallImage(hass, coordinator, tenant),
+            LatestMessageImage(hass, coordinator, tenant),
+            LatestAccessImage(hass, coordinator, tenant),
+        ]
+    async_add_entities(entities)
 
-class ButterflyMXImageEntity(ImageEntity):
-    """Base class for ButterflyMX image entities."""
 
-    def __init__(self, hass: HomeAssistant, tenant) -> None:
-        """Initialize the image entity."""
-        super().__init__(hass)
-        self._tenant = tenant
-        self._attr_should_poll = True
-        self._last_image_url = None
+class ButterflyMXImageEntity(ButterflyMXEntity, ImageEntity):
+    """Shows the snapshot from the latest event of one kind."""
 
-    @property
-    def image_url(self) -> str | None:
-        """Return the URL of the image."""
-        return self._last_image_url
+    _kind: str
+
+    def __init__(self, hass: HomeAssistant, coordinator: ButterflyMXCoordinator, tenant) -> None:
+        ButterflyMXEntity.__init__(self, coordinator, tenant)
+        ImageEntity.__init__(self, hass)
+        self._attr_name = f"Latest {self._kind.title()} Image ({tenant.name})"
+        self._attr_unique_id = f"butterflymx_latest_{self._kind}_image_{tenant.id}"
+        self._image: tuple[str, bytes] | None = None  # (url, bytes) cache
+        self._update_url()
+
+    def _latest_url(self) -> str | None:
+        raise NotImplementedError
+
+    def _update_url(self) -> None:
+        url = self._latest_url()
+        if url != self._attr_image_url:
+            self._attr_image_url = url
+            self._attr_image_last_updated = dt_util.utcnow()
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        self._update_url()
+        super()._handle_coordinator_update()
+
+    async def async_image(self) -> bytes | None:
+        """Download the snapshot.
+
+        Done here instead of relying on ImageEntity's URL loader because some
+        ButterflyMX snapshots (messages) are served as binary/octet-stream,
+        which that loader rejects.
+        """
+        url = self._attr_image_url
+        if not url:
+            return None
+        if self._image and self._image[0] == url:
+            return self._image[1]
+        async with async_get_clientsession(self.hass).get(url) as resp:
+            resp.raise_for_status()
+            content = await resp.read()
+            ctype = resp.content_type
+        self._attr_content_type = ctype if ctype.startswith("image/") else "image/jpeg"
+        self._image = (url, content)
+        return content
+
 
 class LatestCallImage(ButterflyMXImageEntity):
-    """Image entity for the latest call snapshot."""
+    _kind = "call"
 
-    def __init__(self, hass, tenant):
-        super().__init__(hass, tenant)
-        self._attr_name = f"Latest Call Image ({tenant.name})"
-        self._attr_unique_id = f"butterflymx_latest_call_image_{tenant.id}"
+    def _latest_url(self) -> str | None:
+        calls = self.overview.calls
+        return calls[0].image_url if calls else None
 
-    async def async_update(self):
-        """Update the image URL."""
-        calls = await self._tenant.get_calls()
-        if calls:
-            new_url = calls[0].image_url
-            if new_url != self._last_image_url:
-                self._last_image_url = new_url
-                self._attr_image_last_updated = dt_util.utcnow()
 
 class LatestMessageImage(ButterflyMXImageEntity):
-    """Image entity for the latest message snapshot."""
+    _kind = "message"
 
-    def __init__(self, hass, tenant):
-        super().__init__(hass, tenant)
-        self._attr_name = f"Latest Message Image ({tenant.name})"
-        self._attr_unique_id = f"butterflymx_latest_message_image_{tenant.id}"
+    def _latest_url(self) -> str | None:
+        msgs = self.overview.messages
+        return msgs[0].image_url if msgs else None
 
-    async def async_update(self):
-        """Update the image URL."""
-        msgs = await self._tenant.get_messages()
-        if msgs:
-            new_url = msgs[0].image_url
-            if new_url != self._last_image_url:
-                self._last_image_url = new_url
-                self._attr_image_last_updated = dt_util.utcnow()
 
 class LatestAccessImage(ButterflyMXImageEntity):
-    """Image entity for the latest access event snapshot."""
+    _kind = "access"
 
-    def __init__(self, hass, tenant):
-        super().__init__(hass, tenant)
-        self._attr_name = f"Latest Access Image ({tenant.name})"
-        self._attr_unique_id = f"butterflymx_latest_access_image_{tenant.id}"
-
-    async def async_update(self):
-        """Update the image URL."""
-        logs = await self._tenant.get_access_logs()
-        if logs:
-            last_log = logs[0]
-            new_url = last_log.image_url
-            if new_url != self._last_image_url:
-                self._last_image_url = new_url
-                self._attr_image_last_updated = dt_util.utcnow()
+    def _latest_url(self) -> str | None:
+        logs = self.overview.access_logs
+        return logs[0].image_url if logs else None

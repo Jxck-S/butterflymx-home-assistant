@@ -1,76 +1,91 @@
-import asyncio
-import logging
+"""Lock entities for ButterflyMX doors."""
+
+from __future__ import annotations
+
 import time
+from typing import Any
+
+from butterflymx import ButterflyMXAuthError, ButterflyMXError, Door
 from homeassistant.components.lock import LockEntity
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.event import async_call_later
 
-from .const import DOMAIN
+from .coordinator import ButterflyMXConfigEntry
+from .entity import ButterflyMXEntity
 
-_LOGGER = logging.getLogger(__name__)
+# Doors re-lock themselves; show "unlocked" this long after opening
+UNLOCKED_DISPLAY_SECONDS = 10
+# Ignore repeat unlocks within this window
+UNLOCK_COOLDOWN_SECONDS = 20
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    entry: ButterflyMXConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the ButterflyMX Lock platform."""
-    client = hass.data[DOMAIN][entry.entry_id]
+    """Set up a lock entity for each door."""
+    coordinator = entry.runtime_data
+    async_add_entities(
+        ButterflyMXDoor(coordinator, tenant, door)
+        for tenant in coordinator.tenants
+        for door in coordinator.data[tenant.id].doors
+    )
 
-    # Fetch tenants and doors
-    tenants = await client.get_tenants()
-    
-    entities = []
-    for tenant in tenants:
-        doors = await tenant.get_doors()
-        for door in doors:
-            entities.append(ButterflyMXDoor(client, door, tenant))
-            
-    async_add_entities(entities)
 
-class ButterflyMXDoor(LockEntity):
-    """Representation of a ButterflyMX Door."""
+class ButterflyMXDoor(ButterflyMXEntity, LockEntity):
+    """A ButterflyMX door. Unlocking opens it; it re-locks on its own."""
 
-    def __init__(self, client, door, tenant):
-        self._client = client
+    def __init__(self, coordinator, tenant, door: Door) -> None:
+        super().__init__(coordinator, tenant)
         self._door = door
-        self._tenant = tenant
         self._attr_name = f"{door.name} ({tenant.name})"
         self._attr_unique_id = f"butterflymx_door_{door.id}"
-        
-        # It's an access control system, so we assume it's "locked" unless we are actively opening it.
-        # But LockEntity expects a state.
         self._attr_is_locked = True
-        self._last_unlock_time = 0
-
-    async def async_lock(self, **kwargs):
-        """Lock the door (Not supported/Auto-locks)."""
-        pass
-
-    async def async_unlock(self, **kwargs):
-        """Unlock the door."""
-        now = time.time()
-        if now - self._last_unlock_time < 20:
-            _LOGGER.warning(f"Unlock requested for {self.name} but cooldown is active ({int(20 - (now - self._last_unlock_time))}s remaining)")
-            return
-
-        _LOGGER.info(f"Unlocking {self.name}")
-        self._last_unlock_time = now
-        
-        # Call the async open() method
-        success = await self._door.open()
-        
-        if success:
-             self._attr_is_locked = False
-             self.async_write_ha_state()
-             
-             # Re-lock after 10 seconds visually in HA
-             await asyncio.sleep(10)
-             self._attr_is_locked = True
-             self.async_write_ha_state()
+        self._last_unlock = 0.0
+        self._cancel_relock = None
 
     @property
     def available(self) -> bool:
-        """Return True if door is online."""
-        return self._door.online
+        """Available when the coordinator is healthy and the door is online."""
+        if not super().available:
+            return False
+        door = next((d for d in self.overview.doors if d.id == self._door.id), None)
+        return bool(door and door.online)
+
+    async def async_lock(self, **kwargs: Any) -> None:
+        """Doors lock automatically; nothing to do."""
+
+    async def async_unlock(self, **kwargs: Any) -> None:
+        """Open the door."""
+        remaining = UNLOCK_COOLDOWN_SECONDS - (time.monotonic() - self._last_unlock)
+        if remaining > 0:
+            raise HomeAssistantError(f"{self.name} was just opened; try again in {int(remaining) + 1}s")
+
+        try:
+            await self._door.open()
+        except ButterflyMXAuthError as err:
+            self.coordinator.config_entry.async_start_reauth(self.hass)
+            raise HomeAssistantError(f"Failed to open {self.name}: {err}") from err
+        except ButterflyMXError as err:
+            raise HomeAssistantError(f"Failed to open {self.name}: {err}") from err
+
+        self._last_unlock = time.monotonic()
+        self._attr_is_locked = False
+        self.async_write_ha_state()
+        if self._cancel_relock:
+            self._cancel_relock()
+        self._cancel_relock = async_call_later(self.hass, UNLOCKED_DISPLAY_SECONDS, self._relock)
+
+    @callback
+    def _relock(self, _now) -> None:
+        self._cancel_relock = None
+        self._attr_is_locked = True
+        self.async_write_ha_state()
+
+    async def async_will_remove_from_hass(self) -> None:
+        if self._cancel_relock:
+            self._cancel_relock()
+        await super().async_will_remove_from_hass()

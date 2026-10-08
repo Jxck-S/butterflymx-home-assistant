@@ -1,0 +1,29 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to ButterflyMX",
+        "description": "Sign in with the email and password you use in the ButterflyMX app.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-enter your ButterflyMX password",
+        "description": "The password for {email} no longer works.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid email or password.",
+      "cannot_connect": "Couldn't reach ButterflyMX. Try again later."
+    },
+    "abort": {
+      "already_configured": "This account is already set up.",
+      "reauth_successful": "Password updated."
+    }
+  }
+}

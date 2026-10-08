@@ -1,45 +1,65 @@
-import logging
+"""The ButterflyMX integration."""
+
+from __future__ import annotations
+
+import contextlib
 import os
-from homeassistant.config_entries import ConfigEntry
+from typing import Any
+
+from butterflymx import (
+    ButterflyMXAuthError,
+    ButterflyMXClient,
+    ButterflyMXError,
+)
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from .const import DOMAIN, CONF_EMAIL, CONF_PASSWORD
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from butterflymx import ButterflyMXClient
+from .const import CONF_EMAIL, CONF_PASSWORD, CONF_TOKENS
+from .coordinator import ButterflyMXConfigEntry, ButterflyMXCoordinator
 
-_LOGGER = logging.getLogger(__name__)
+PLATFORMS = [Platform.IMAGE, Platform.LOCK, Platform.SENSOR]
 
-PLATFORMS = ["lock", "sensor", "image"]
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: ButterflyMXConfigEntry) -> bool:
     """Set up ButterflyMX from a config entry."""
-    hass.data.setdefault(DOMAIN, {})
 
-    # Use HA's .storage directory for internal token files
-    token_file = hass.config.path(".storage", f"butterflymx_tokens_{entry.entry_id}.json")
+    def save_tokens(tokens: dict[str, Any]) -> None:
+        hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_TOKENS: tokens})
 
     client = ButterflyMXClient(
-        email=entry.data[CONF_EMAIL], 
-        password=entry.data[CONF_PASSWORD],
-        token_file=token_file
+        entry.data[CONF_EMAIL],
+        entry.data[CONF_PASSWORD],
+        session=async_get_clientsession(hass),
+        tokens=entry.data.get(CONF_TOKENS),
+        on_tokens_updated=save_tokens,
     )
 
-    # Initial Login
-    success = await client.login()
-    
-    if not success:
-        _LOGGER.error("Failed to login to ButterflyMX")
-        return False
+    try:
+        tenants = await client.get_tenants()
+    except ButterflyMXAuthError as err:
+        raise ConfigEntryAuthFailed(str(err)) from err
+    except ButterflyMXError as err:
+        raise ConfigEntryNotReady(str(err)) from err
 
-    hass.data[DOMAIN][entry.entry_id] = client
+    coordinator = ButterflyMXCoordinator(hass, entry, client, tenants)
+    await coordinator.async_config_entry_first_refresh()
+    entry.runtime_data = coordinator
+
+    # Versions before 2.0 kept tokens in a file under .storage; they live in the entry now
+    old_token_file = hass.config.path(".storage", f"butterflymx_tokens_{entry.entry_id}.json")
+    await hass.async_add_executor_job(_remove_file, old_token_file)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
     return True
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
 
-    return unload_ok
+async def async_unload_entry(hass: HomeAssistant, entry: ButterflyMXConfigEntry) -> bool:
+    """Unload a config entry."""
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+def _remove_file(path: str) -> None:
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(path)
