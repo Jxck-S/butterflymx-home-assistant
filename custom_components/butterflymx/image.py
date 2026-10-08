@@ -37,7 +37,7 @@ class ButterflyMXImageEntity(ButterflyMXEntity, ImageEntity):
     def __init__(self, hass: HomeAssistant, coordinator: ButterflyMXCoordinator, tenant) -> None:
         ButterflyMXEntity.__init__(self, coordinator, tenant)
         ImageEntity.__init__(self, hass)
-        self._attr_name = f"Latest {self._kind.title()} Image ({tenant.name})"
+        self._attr_name = f"Latest {self._kind.title()} Image"
         self._attr_unique_id = f"butterflymx_latest_{self._kind}_image_{tenant.id}"
         self._image: tuple[str, bytes] | None = None  # (url, bytes) cache
         self._update_url()

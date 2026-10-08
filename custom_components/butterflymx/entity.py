@@ -11,7 +11,9 @@ from .coordinator import ButterflyMXCoordinator
 
 
 class ButterflyMXEntity(CoordinatorEntity[ButterflyMXCoordinator]):
-    """An entity belonging to one tenant (unit)."""
+    """An entity belonging to one tenant (unit). Named "<unit> <entity name>"."""
+
+    _attr_has_entity_name = True
 
     def __init__(self, coordinator: ButterflyMXCoordinator, tenant: Tenant) -> None:
         super().__init__(coordinator)

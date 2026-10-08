@@ -13,16 +13,16 @@ from custom_components.butterflymx.const import DOMAIN
 
 
 async def test_sensor_states(hass, setup_integration):
-    msg = hass.states.get("sensor.last_message_unit_101")
+    msg = hass.states.get("sensor.unit_101_last_message")
     assert msg.state == "Package here"
     assert msg.attributes["source"] == "Front Lobby"
     assert msg.attributes["entity_picture"] == "https://img.example/m1"
 
-    call = hass.states.get("sensor.last_call_unit_101")
+    call = hass.states.get("sensor.unit_101_last_call")
     assert call.state == "Front Lobby - MISSED"
     assert call.attributes["type"] == "VISITOR"
 
-    access = hass.states.get("sensor.last_access_unit_101")
+    access = hass.states.get("sensor.unit_101_last_access")
     assert access.state == "Garage - TENANT"
     assert access.attributes["method"] == "SWIPE_TO_OPEN"
 
@@ -38,15 +38,15 @@ async def test_sensors_update_from_coordinator(hass, setup_integration, mock_cli
     mock_client.tenant.get_overview.side_effect = newer
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=6))
     await hass.async_block_till_done()
-    assert hass.states.get("sensor.last_call_unit_101").state == "Front Lobby - OPENED_DOOR"
+    assert hass.states.get("sensor.unit_101_last_call").state == "Front Lobby - OPENED_DOOR"
 
 
 async def test_offline_door_is_unavailable(hass, setup_integration):
-    assert hass.states.get("lock.front_lobby_unit_101").state == LockState.LOCKED
-    assert hass.states.get("lock.garage_unit_101").state == STATE_UNAVAILABLE
+    assert hass.states.get("lock.unit_101_front_lobby").state == LockState.LOCKED
+    assert hass.states.get("lock.unit_101_garage").state == STATE_UNAVAILABLE
 
 
-async def unlock(hass, entity_id="lock.front_lobby_unit_101"):
+async def unlock(hass, entity_id="lock.unit_101_front_lobby"):
     await hass.services.async_call("lock", "unlock", {ATTR_ENTITY_ID: entity_id}, blocking=True)
 
 
@@ -60,11 +60,11 @@ async def test_unlock_opens_door_then_relocks(hass, setup_integration, door_open
     await unlock(hass)
 
     door_open.assert_awaited_once()
-    assert hass.states.get("lock.front_lobby_unit_101").state == LockState.UNLOCKED
+    assert hass.states.get("lock.unit_101_front_lobby").state == LockState.UNLOCKED
 
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=11))
     await hass.async_block_till_done()
-    assert hass.states.get("lock.front_lobby_unit_101").state == LockState.LOCKED
+    assert hass.states.get("lock.unit_101_front_lobby").state == LockState.LOCKED
 
 
 async def test_unlock_cooldown(hass, setup_integration, door_open):
@@ -78,7 +78,7 @@ async def test_unlock_failure_raises(hass, setup_integration, door_open):
     door_open.side_effect = ButterflyMXConnectionError("timeout")
     with pytest.raises(HomeAssistantError, match="Failed to open"):
         await unlock(hass)
-    assert hass.states.get("lock.front_lobby_unit_101").state == LockState.LOCKED
+    assert hass.states.get("lock.unit_101_front_lobby").state == LockState.LOCKED
 
 
 async def test_unlock_auth_failure_starts_reauth(hass, setup_integration, door_open):
@@ -94,7 +94,7 @@ async def test_image_serves_octet_stream_snapshot_as_jpeg(hass, aioclient_mock, 
     aioclient_mock.get(
         "https://img.example/m1", content=b"\xff\xd8jpeg", headers={"Content-Type": "binary/octet-stream"}
     )
-    state = hass.states.get("image.latest_message_image_unit_101")
+    state = hass.states.get("image.unit_101_latest_message_image")
     assert state is not None
 
     client = await hass_client()
@@ -107,7 +107,7 @@ async def test_image_serves_octet_stream_snapshot_as_jpeg(hass, aioclient_mock, 
 
 async def test_image_is_cached_per_url(hass, aioclient_mock, setup_integration, hass_client):
     aioclient_mock.get("https://img.example/c1", content=b"img", headers={"Content-Type": "image/jpeg"})
-    url = hass.states.get("image.latest_call_image_unit_101").attributes["entity_picture"]
+    url = hass.states.get("image.unit_101_latest_call_image").attributes["entity_picture"]
     client = await hass_client()
     await client.get(url)
     await client.get(url)

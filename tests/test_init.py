@@ -15,14 +15,14 @@ async def test_setup_creates_entities(hass, setup_integration, mock_client):
     assert setup_integration.state is ConfigEntryState.LOADED
     ids = set(hass.states.async_entity_ids())
     assert {
-        "sensor.last_message_unit_101",
-        "sensor.last_call_unit_101",
-        "sensor.last_access_unit_101",
-        "image.latest_call_image_unit_101",
-        "image.latest_message_image_unit_101",
-        "image.latest_access_image_unit_101",
-        "lock.front_lobby_unit_101",
-        "lock.garage_unit_101",
+        "sensor.unit_101_last_message",
+        "sensor.unit_101_last_call",
+        "sensor.unit_101_last_access",
+        "image.unit_101_latest_call_image",
+        "image.unit_101_latest_message_image",
+        "image.unit_101_latest_access_image",
+        "lock.unit_101_front_lobby",
+        "lock.unit_101_garage",
     } <= ids
     # One overview request per tenant, not one per entity
     assert mock_client.tenant.get_overview.await_count == 1
@@ -62,7 +62,7 @@ async def test_update_failure_marks_entities_unavailable(hass, setup_integration
     mock_client.tenant.get_overview.side_effect = ButterflyMXConnectionError("offline")
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=6))
     await hass.async_block_till_done()
-    assert hass.states.get("sensor.last_call_unit_101").state == STATE_UNAVAILABLE
+    assert hass.states.get("sensor.unit_101_last_call").state == STATE_UNAVAILABLE
 
 
 async def test_auth_failure_during_update_starts_reauth(hass, setup_integration, mock_client):
@@ -98,3 +98,19 @@ def _exists(path):
     import os
 
     return os.path.exists(path)
+
+
+async def test_existing_entity_ids_kept_on_upgrade(hass, config_entry, mock_client):
+    """Entities registered by 1.x keep their entity IDs (registry is keyed by unique_id)."""
+    from homeassistant.helpers import entity_registry as er
+
+    reg = er.async_get(hass)
+    reg.async_get_or_create(
+        "sensor", DOMAIN, "butterflymx_last_call_tenant-1",
+        suggested_object_id="last_call_unit_101", config_entry=config_entry,
+    )
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert hass.states.get("sensor.last_call_unit_101") is not None
+    assert hass.states.get("sensor.unit_101_last_call") is None

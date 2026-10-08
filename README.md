@@ -12,7 +12,7 @@ This integration allows you to control your ButterflyMX access points (doors) an
 
 ## Installation
 
-Requires Home Assistant 2025.2 or newer.
+Requires Home Assistant 2026.3 or newer.
 
 ### HACS (recommended)
 1. In HACS, open the menu (⋮) > **Custom repositories**.
@@ -59,6 +59,8 @@ Data is refreshed every 5 minutes, with a single request per unit.
 ## Upgrading from 1.x
 
 Version 2.0 stores login tokens in the integration's config entry instead of a separate file. The old `.storage/butterflymx_tokens_*.json` file is deleted automatically. After upgrading, the integration logs in once with your saved email and password. Entity IDs stay the same.
+
+Version 2.1 uses Home Assistant's standard entity naming: names are now "Unit 101 Last Call" instead of "Last Call (Unit 101)". Existing entity IDs don't change. New installs get IDs like `sensor.unit_101_last_call`.
 
 ## Development
 
