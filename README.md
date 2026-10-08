@@ -3,52 +3,26 @@
 
 This integration allows you to control your ButterflyMX access points (doors) and view message/call history from Home Assistant.
 
+> **Unofficial.** This integration is not affiliated with or endorsed by ButterflyMX. It uses the same private API as the official mobile app, which may change or break at any time. Use at your own risk.
+
 ## Installation
 
-### 1. Configure with Setup Script
-Since the client library is a private repository, this integration requires a GitHub Personal Access Token (PAT) for installation.
+### HACS (recommended)
+1. In HACS, open the menu (⋮) > **Custom repositories**.
+2. Add `https://github.com/Jxck-S/butterflymx-home-assistant` with category **Integration**.
+3. Search for **ButterflyMX** in HACS and download it.
+4. Restart Home Assistant.
 
-1. Clone this repository into your Home Assistant's `custom_components/` directory:
-   ```bash
-   cd config/custom_components
-   git clone https://github.com/Jxck-S/butterflymx-home-assistant.git
-   cd butterflymx-home-assistant
-   ```
-2. Run the setup script:
-   ```bash
-   ./setup.sh
-   ```
-   The script intelligently **caches your token** and **auto-detects** if it needs to perform a new installation or an update. After the first run, no further input is required.
+### Manual
+1. Copy `custom_components/butterflymx` into your Home Assistant `config/custom_components/` directory.
+2. Restart Home Assistant.
 
+Home Assistant installs the [butterflymx-client](https://github.com/Jxck-S/butterflymx-client) library automatically.
 
-
-## GitHub Personal Access Token (PAT)
-
-Since both the integration and the client library are private, you need a GitHub PAT to allow Home Assistant to download the dependency. We recommend using a **Fine-grained Personal Access Token** for better security.
-
-### How to Create a Fine-grained PAT
-1. Go to [GitHub Settings > Developer Settings > Personal access tokens > Fine-grained tokens](https://github.com/settings/tokens?type=beta).
-2. Click **Generate new token**.
-3. **Name**: Give it a name (e.g., "Home Assistant ButterflyMX").
-4. **Repository access**: Select **Only select repositories**.
-5. **Select repositories**: Choose both:
-   - `butterflymx-home-assistant`
-   - `butterflymx-client`
-6. **Permissions**: Under **Repository permissions**:
-   - Find **Contents** and set it to **Read-only**.
-7. Click **Generate token** and copy it immediately.
-
-### 2. Manual Configuration (Optional)
-Alternatively, you can manually replace `YOUR_GITHUB_TOKEN` in `custom_components/butterflymx/manifest.json` with your actual PAT.
-
-### 3. Home Assistant Setup
-After configuration, restart Home Assistant and add the ButterflyMX integration via the UI.
-
-4.  **Add Integration**:
-    *   Go to **Settings > Devices & Services**.
-    *   Click **Add Integration**.
-    *   Search for "ButterflyMX".
-    *   Enter your Email and Password.
+### Setup
+1. Go to **Settings > Devices & Services**.
+2. Click **Add Integration** and search for "ButterflyMX".
+3. Enter your ButterflyMX email and password.
 
 ## Entities
 
@@ -57,3 +31,5 @@ After configuration, restart Home Assistant and add the ButterflyMX integration 
 *   **Sensors**:
     *   **Last Message**: Shows the body of the most recent message. Attributes include timestamp and source.
     *   **Last Call**: Shows the device and status of the most recent call. Attributes include type and image URL.
+    *   **Last Access**: Shows the door and type of the most recent door release.
+*   **Images**: Latest call, message, and access snapshots.
