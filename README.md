@@ -38,3 +38,7 @@ Home Assistant installs the [butterflymx-client](https://github.com/Jxck-S/butte
     *   **Last Call**: Shows the device and status of the most recent call. Attributes include type and image URL.
     *   **Last Access**: Shows the door and type of the most recent door release.
 *   **Images**: Latest call, message, and access snapshots.
+
+## License
+
+[MIT](LICENSE). See the disclaimer at the top: this is an unofficial project, not affiliated with ButterflyMX.
