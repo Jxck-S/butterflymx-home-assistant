@@ -1,0 +1,3 @@
+pytest-homeassistant-custom-component
+butterflymx-client @ git+https://github.com/Jxck-S/butterflymx-client.git@29347f35e2ca73a94f18a574616bf613490f45d0
+ruff
