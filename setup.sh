@@ -62,7 +62,7 @@ if [ -f "$DEST_DIR/manifest.json" ]; then
     echo "Updating manifest.json requirements..."
     
     # Portable sed with backup file for macOS/Linux compatibility
-    REQ_URL="git+https://$PAT@github.com/Jxck-S/butterflymx-client.git#egg=butterflymx-client"
+    REQ_URL="git+https://$PAT@github.com/Jxck-S/butterflymx-client.git#egg=butterflymx-client==1.0.1"
     
     # Replace the line containing butterflymx-client.git
     sed -i.bak "s|.*butterflymx-client.git.*|\"        $REQ_URL\"|g" "$DEST_DIR/manifest.json"
