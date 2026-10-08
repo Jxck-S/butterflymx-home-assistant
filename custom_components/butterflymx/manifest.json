@@ -1,12 +1,13 @@
 {
     "domain": "butterflymx",
     "name": "ButterflyMX",
-    "codeowners": [],
+    "codeowners": ["@Jxck-S"],
     "config_flow": true,
     "documentation": "https://github.com/Jxck-S/butterflymx-home-assistant",
+    "issue_tracker": "https://github.com/Jxck-S/butterflymx-home-assistant/issues",
     "iot_class": "cloud_polling",
     "requirements": [
-        "git+https://YOUR_GITHUB_TOKEN@github.com/Jxck-S/butterflymx-client.git#egg=butterflymx-client==1.0.1"
+        "git+https://github.com/Jxck-S/butterflymx-client.git@14df5f9559710ae0b207f25e3a4e38b1b82a699f#egg=butterflymx-client==1.1.0"
     ],
-    "version": "1.0.1"
+    "version": "1.1.0"
 }
