@@ -37,7 +37,7 @@ class LastMessageSensor(ButterflyMXEntity, SensorEntity):
 
     def __init__(self, coordinator, tenant) -> None:
         super().__init__(coordinator, tenant)
-        self._attr_name = f"Last Message ({tenant.name})"
+        self._attr_name = "Last Message"
         self._attr_unique_id = f"butterflymx_last_message_{tenant.id}"
 
     @property
@@ -72,7 +72,7 @@ class LastCallSensor(ButterflyMXEntity, SensorEntity):
 
     def __init__(self, coordinator, tenant) -> None:
         super().__init__(coordinator, tenant)
-        self._attr_name = f"Last Call ({tenant.name})"
+        self._attr_name = "Last Call"
         self._attr_unique_id = f"butterflymx_last_call_{tenant.id}"
 
     @property
@@ -108,7 +108,7 @@ class LastAccessSensor(ButterflyMXEntity, SensorEntity):
 
     def __init__(self, coordinator, tenant) -> None:
         super().__init__(coordinator, tenant)
-        self._attr_name = f"Last Access ({tenant.name})"
+        self._attr_name = "Last Access"
         self._attr_unique_id = f"butterflymx_last_access_{tenant.id}"
 
     @property

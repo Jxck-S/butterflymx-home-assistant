@@ -41,7 +41,7 @@ class ButterflyMXDoor(ButterflyMXEntity, LockEntity):
     def __init__(self, coordinator, tenant, door: Door) -> None:
         super().__init__(coordinator, tenant)
         self._door = door
-        self._attr_name = f"{door.name} ({tenant.name})"
+        self._attr_name = door.name
         self._attr_unique_id = f"butterflymx_door_{door.id}"
         self._attr_is_locked = True
         self._last_unlock = 0.0
