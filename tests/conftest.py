@@ -54,6 +54,8 @@ def mock_client():
     client = MagicMock()
     client.tokens = TOKENS
     client.login = AsyncMock()
+    client.close = AsyncMock()
+    client.creations = 0
 
     tenant = MagicMock()
     tenant.id = TENANT_ID
@@ -63,6 +65,8 @@ def mock_client():
     client.tenant = tenant
 
     def factory(*args, **kwargs):
+        client.creations += 1
+        client.init_args = args
         client.init_kwargs = kwargs
         return client
 

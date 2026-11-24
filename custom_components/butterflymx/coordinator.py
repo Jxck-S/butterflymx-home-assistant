@@ -16,6 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from .auth import VERIFICATION_EXCEPTIONS, VERIFICATION_MESSAGE, get_pending_verification, stash_pending_verification
 from .const import DOMAIN, SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,8 +47,18 @@ class ButterflyMXCoordinator(DataUpdateCoordinator[dict[str, TenantOverview]]):
         self.tenants = tenants
 
     async def _async_update_data(self) -> dict[str, TenantOverview]:
+        # A code was already requested. Another fetch would be a new client
+        # login only if this one were replaced; on this client it re-raises.
+        # Either way, do not poll until the reauth step submits the code.
+        if get_pending_verification(self.hass, self.config_entry.entry_id) is not None:
+            self.update_interval = None
+            raise UpdateFailed(VERIFICATION_MESSAGE)
         try:
             return {t.id: await t.get_overview() for t in self.tenants}
+        except VERIFICATION_EXCEPTIONS as err:
+            stash_pending_verification(self.hass, self.config_entry.entry_id, self.client, err)
+            self.update_interval = None
+            raise ConfigEntryAuthFailed(VERIFICATION_MESSAGE) from err
         except ButterflyMXAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except ButterflyMXError as err:

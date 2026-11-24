@@ -12,6 +12,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_call_later
 
+from .auth import VERIFICATION_EXCEPTIONS, ensure_reauth_flow, get_pending_verification, stash_pending_verification
 from .coordinator import ButterflyMXConfigEntry
 from .entity import ButterflyMXEntity
 
@@ -58,14 +59,30 @@ class ButterflyMXDoor(ButterflyMXEntity, LockEntity):
     async def async_lock(self, **kwargs: Any) -> None:
         """Doors lock automatically; nothing to do."""
 
+    def _verification_pending(self) -> bool:
+        return get_pending_verification(self.hass, self.coordinator.config_entry.entry_id) is not None
+
+    def _hold_for_verification(self, err: Exception) -> None:
+        """Keep the session that already texted a code, and stop polling for another."""
+        stash_pending_verification(self.hass, self.coordinator.config_entry.entry_id, self.coordinator.client, err)
+        self.coordinator.update_interval = None
+        ensure_reauth_flow(self.hass, self.coordinator.config_entry)
+
     async def async_unlock(self, **kwargs: Any) -> None:
         """Open the door."""
+        if self._verification_pending():
+            ensure_reauth_flow(self.hass, self.coordinator.config_entry)
+            raise HomeAssistantError(f"Failed to open {self.name}: verification required")
+
         remaining = UNLOCK_COOLDOWN_SECONDS - (time.monotonic() - self._last_unlock)
         if remaining > 0:
             raise HomeAssistantError(f"{self.name} was just opened; try again in {int(remaining) + 1}s")
 
         try:
             await self._door.open()
+        except VERIFICATION_EXCEPTIONS as err:
+            self._hold_for_verification(err)
+            raise HomeAssistantError(f"Failed to open {self.name}: verification required") from err
         except ButterflyMXAuthError as err:
             self.coordinator.config_entry.async_start_reauth(self.hass)
             raise HomeAssistantError(f"Failed to open {self.name}: {err}") from err
