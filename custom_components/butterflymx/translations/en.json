@@ -15,15 +15,39 @@
         "data": {
           "password": "Password"
         }
+      },
+      "verify": {
+        "title": "Enter verification code",
+        "description": "Enter the code ButterflyMX just texted you (expires in 2 minutes).",
+        "data": {
+          "code": "Verification code",
+          "resend": "Text me a new code"
+        }
       }
     },
     "error": {
       "invalid_auth": "Invalid email or password.",
-      "cannot_connect": "Couldn't reach ButterflyMX. Try again later."
+      "cannot_connect": "Couldn't reach ButterflyMX. Try again later.",
+      "invalid_code": "That code wasn't accepted. Check the text and try again.",
+      "verification_expired": "ButterflyMX didn't finish signing in after the code (it may have expired). Sign in again to get a new code; details are in the Home Assistant log."
     },
     "abort": {
       "already_configured": "This account is already set up.",
       "reauth_successful": "Password updated."
+    }
+  },
+  "entity": {
+    "event": {
+      "intercom_call": {
+        "name": "Intercom call",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "ring": "Ring"
+            }
+          }
+        }
+      }
     }
   }
 }

@@ -1,12 +1,13 @@
 from datetime import timedelta
+from unittest.mock import AsyncMock
 
-from butterflymx import ButterflyMXAuthError, ButterflyMXConnectionError
+from butterflymx import ButterflyMXAuthError, ButterflyMXConnectionError, ButterflyMXVerificationRequired
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
-from custom_components.butterflymx.const import CONF_TOKENS, DOMAIN
+from custom_components.butterflymx.const import CONF_CODE, CONF_TOKENS, DOMAIN
 
 from .conftest import TOKENS
 
@@ -33,6 +34,8 @@ async def test_client_gets_shared_session_and_saved_tokens(hass, setup_integrati
     assert kwargs["session"] is not None
     assert kwargs["tokens"] == TOKENS
     assert callable(kwargs["on_tokens_updated"])
+    # Setup must not submit the stored password. The client refreshes tokens itself.
+    mock_client.login.assert_not_awaited()
 
 
 async def test_token_updates_saved_to_entry(hass, setup_integration, mock_client):
@@ -49,6 +52,60 @@ async def test_auth_error_starts_reauth(hass, config_entry, mock_client):
     assert config_entry.state is ConfigEntryState.SETUP_ERROR
     flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
     assert [f["context"]["source"] for f in flows] == [SOURCE_REAUTH]
+
+
+async def test_verification_required_at_setup_starts_reauth_once(hass, config_entry, mock_client):
+    """A code texted while starting up is entered in reauth. Setup does not log in again."""
+    pending = ButterflyMXVerificationRequired()
+    pending.submit_code = AsyncMock()
+    mock_client.get_tenants.side_effect = pending
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert config_entry.state is ConfigEntryState.SETUP_ERROR
+    assert mock_client.get_tenants.await_count == 1
+    assert mock_client.creations == 1
+    mock_client.login.assert_not_awaited()
+    flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    assert len(flows) == 1
+    assert flows[0]["context"]["source"] == SOURCE_REAUTH
+    assert flows[0]["step_id"] == "verify"
+
+    # SETUP_ERROR is not retried on its own. A reload must not construct a new
+    # client either, or that client would submit the password and text another code.
+    await hass.config_entries.async_reload(config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert config_entry.state is ConfigEntryState.SETUP_ERROR
+    assert mock_client.get_tenants.await_count == 1
+    assert mock_client.creations == 1
+    flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    assert [f["step_id"] for f in flows] == ["verify"]
+
+    mock_client.get_tenants.side_effect = None
+    mock_client.tokens = {"access_token": "verified", "refresh_token": "vr", "expires_at": 5}
+    result = await hass.config_entries.flow.async_configure(flows[0]["flow_id"], {CONF_CODE: "918273"})
+    assert result["reason"] == "reauth_successful"
+    pending.submit_code.assert_awaited_once_with("918273")
+    assert config_entry.data[CONF_TOKENS]["access_token"] == "verified"
+    mock_client.login.assert_not_awaited()
+
+
+async def test_verification_during_update_does_not_poll_again(hass, setup_integration, mock_client):
+    pending = ButterflyMXVerificationRequired()
+    mock_client.tenant.get_overview.side_effect = pending
+    calls_before = mock_client.tenant.get_overview.await_count
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=6))
+    await hass.async_block_till_done()
+
+    flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    assert [f["step_id"] for f in flows] == ["verify"]
+    assert mock_client.tenant.get_overview.await_count == calls_before + 1
+    assert setup_integration.runtime_data.update_interval is None
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=12))
+    await hass.async_block_till_done()
+    assert mock_client.tenant.get_overview.await_count == calls_before + 1
+    mock_client.login.assert_not_awaited()
 
 
 async def test_connection_error_retries_setup(hass, config_entry, mock_client):

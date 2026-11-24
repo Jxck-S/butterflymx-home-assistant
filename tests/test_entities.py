@@ -2,7 +2,7 @@ from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from butterflymx import ButterflyMXAuthError, ButterflyMXConnectionError, Door
+from butterflymx import ButterflyMXAuthError, ButterflyMXConnectionError, ButterflyMXVerificationRequired, Door
 from homeassistant.components.lock import LockState
 from homeassistant.const import ATTR_ENTITY_ID, STATE_UNAVAILABLE
 from homeassistant.exceptions import HomeAssistantError
@@ -88,6 +88,21 @@ async def test_unlock_auth_failure_starts_reauth(hass, setup_integration, door_o
     await hass.async_block_till_done()
     flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
     assert len(flows) == 1
+
+
+async def test_unlock_verification_starts_reauth_without_opening_again(hass, setup_integration, door_open):
+    door_open.side_effect = ButterflyMXVerificationRequired()
+    with pytest.raises(HomeAssistantError, match="verification required"):
+        await unlock(hass)
+    await hass.async_block_till_done()
+
+    flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    assert [flow["step_id"] for flow in flows] == ["verify"]
+    assert door_open.await_count == 1
+
+    with pytest.raises(HomeAssistantError, match="verification required"):
+        await unlock(hass)
+    assert door_open.await_count == 1
 
 
 async def test_image_serves_octet_stream_snapshot_as_jpeg(hass, aioclient_mock, setup_integration, hass_client):
