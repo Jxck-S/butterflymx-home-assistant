@@ -84,7 +84,9 @@ async def test_verification_required_at_setup_starts_reauth_once(hass, config_en
     mock_client.get_tenants.side_effect = None
     mock_client.tokens = {"access_token": "verified", "refresh_token": "vr", "expires_at": 5}
     result = await hass.config_entries.flow.async_configure(flows[0]["flow_id"], {CONF_CODE: "918273"})
+    await hass.async_block_till_done()
     assert result["reason"] == "reauth_successful"
+    assert config_entry.state is ConfigEntryState.LOADED
     pending.submit_code.assert_awaited_once_with("918273")
     assert config_entry.data[CONF_TOKENS]["access_token"] == "verified"
     mock_client.login.assert_not_awaited()
